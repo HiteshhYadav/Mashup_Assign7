@@ -1,27 +1,22 @@
 import os
 import shutil
 import zipfile
-import base64
 from flask import Flask, render_template, request
+from flask_mail import Mail, Message
 from yt_dlp import YoutubeDL
 from pydub import AudioSegment
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import (
-    Mail, Attachment, FileContent,
-    FileName, FileType, Disposition
-)
 
 app = Flask(__name__)
 
-DOWNLOAD_FOLDER = "downloads"
-CUT_FOLDER = "cuts"
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
+mail = Mail(app)
 
-
-# --------------------------
-# DOWNLOAD AUDIO FROM YOUTUBE
-# --------------------------
 def download_audio(singer, num_videos):
-    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+    os.makedirs("downloads", exist_ok=True)
 
     search_opts = {
         "quiet": True,
@@ -31,25 +26,24 @@ def download_audio(singer, num_videos):
 
     with YoutubeDL(search_opts) as ydl:
         search = ydl.extract_info(
-            f"ytsearch{num_videos*3}:{singer}",
+            f"ytsearch{num_videos * 2}:{singer}",
             download=False
         )
 
     entries = search.get("entries", [])
-    urls = []
 
-    for e in entries:
-        if e and e.get("url"):
-            urls.append(e["url"])
-        if len(urls) == num_videos:
+    video_urls = []
+    for entry in entries:
+        if entry and entry.get("_type") == "url" and entry.get("ie_key") == "Youtube":
+            video_urls.append(entry["url"])
+        if len(video_urls) == num_videos:
             break
 
     download_opts = {
         "format": "bestaudio/best",
-        "outtmpl": f"{DOWNLOAD_FOLDER}/%(id)s.%(ext)s",
+        "outtmpl": "downloads/%(id)s.%(ext)s",
         "quiet": True,
         "noplaylist": True,
-        "ignoreerrors": True,
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
@@ -58,37 +52,32 @@ def download_audio(singer, num_videos):
     }
 
     with YoutubeDL(download_opts) as ydl:
-        for url in urls:
+        for url in video_urls:
             try:
                 ydl.download([url])
             except:
                 continue
 
 
-# --------------------------
-# CREATE MASHUP
-# --------------------------
 def create_mashup(singer, num_videos, duration):
-    os.makedirs(CUT_FOLDER, exist_ok=True)
+    os.makedirs("cuts", exist_ok=True)
 
     download_audio(singer, num_videos)
 
-    files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(".mp3")]
-
-    if len(files) == 0:
-        raise Exception("No audio downloaded")
-
-    for file in files:
-        audio = AudioSegment.from_mp3(os.path.join(DOWNLOAD_FOLDER, file))
-        cut_audio = audio[:duration * 1000]
-        cut_audio.export(os.path.join(CUT_FOLDER, file), format="mp3")
+    for file in os.listdir("downloads"):
+        if file.endswith(".mp3"):
+            audio_path = os.path.join("downloads", file)
+            cut_path = os.path.join("cuts", file)
+            audio = AudioSegment.from_mp3(audio_path)
+            cut_audio = audio[:duration * 1000]
+            cut_audio.export(cut_path, format="mp3")
 
     final_audio = AudioSegment.empty()
 
-    for file in os.listdir(CUT_FOLDER):
+    for file in os.listdir("cuts"):
         if file.endswith(".mp3"):
-            segment = AudioSegment.from_mp3(os.path.join(CUT_FOLDER, file))
-            final_audio += segment
+            audio = AudioSegment.from_mp3(os.path.join("cuts", file))
+            final_audio += audio
 
     output_file = "mashup.mp3"
     final_audio.export(output_file, format="mp3")
@@ -97,86 +86,43 @@ def create_mashup(singer, num_videos, duration):
     with zipfile.ZipFile(zip_file, "w") as zipf:
         zipf.write(output_file)
 
-    shutil.rmtree(DOWNLOAD_FOLDER, ignore_errors=True)
-    shutil.rmtree(CUT_FOLDER, ignore_errors=True)
+    shutil.rmtree("downloads", ignore_errors=True)
+    shutil.rmtree("cuts", ignore_errors=True)
     os.remove(output_file)
 
     return zip_file
 
 
-# --------------------------
-# SEND EMAIL (SENDGRID)
-# --------------------------
-def send_email(to_email, zip_file):
-
-    if not os.path.exists(zip_file):
-        return False
-
-    message = Mail(
-        from_email=os.getenv("FROM_EMAIL"),
-        to_emails=to_email,
-        subject="Your Mashup File",
-        html_content="Your mashup is attached."
-    )
-
-    with open(zip_file, "rb") as f:
-        data = f.read()
-
-    encoded = base64.b64encode(data).decode()
-
-    attachment = Attachment(
-        FileContent(encoded),
-        FileName("mashup.zip"),
-        FileType("application/zip"),
-        Disposition("attachment")
-    )
-
-    message.attachment = attachment
-
-    try:
-        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
-        sg.send(message)
-        return True
-    except:
-        return False
-
-
-# --------------------------
-# ROUTE
-# --------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-
         singer = request.form["singer"]
         num_videos = int(request.form["videos"])
         duration = int(request.form["duration"])
         email = request.form["email"]
 
-        try:
-            zip_file = create_mashup(singer, num_videos, duration)
+        if num_videos <= 10:
+            return "Number of videos must be greater than 10"
 
-            sent = send_email(email, zip_file)
+        if duration <= 20:
+            return "Duration must be greater than 20 seconds"
 
-            if os.path.exists(zip_file):
-                os.remove(zip_file)
+        zip_file = create_mashup(singer, num_videos, duration)
 
-            if sent:
-                return render_template(
-                    "success.html",
-                    message="Mashup created and sent to your email."
-                )
-            else:
-                return render_template(
-                    "success.html",
-                    message="Mashup created but email could not be sent."
-                )
+        msg = Message(
+            subject="Your Mashup File",
+            sender=app.config["MAIL_USERNAME"],
+            recipients=[email]
+        )
 
-        except Exception:
-            return render_template(
-                "success.html",
-                message="Could not create mashup (YouTube may have blocked requests)."
-            )
+        with open(zip_file, "rb") as f:
+            msg.attach("mashup.zip", "application/zip", f.read())
+
+        mail.send(msg)
+
+        os.remove(zip_file)
+
+        return render_template("success.html")
 
     return render_template("index.html")
 
