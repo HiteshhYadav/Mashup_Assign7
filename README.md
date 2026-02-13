@@ -105,20 +105,6 @@ Response messages appear on the success page:
 
 ---
 
-## Example: submit using curl
-
-You can simulate a form POST (for testing) with curl:
-
-curl -X POST http://localhost:5000 \
-  -d "singer=Coldplay" \
-  -d "videos=11" \
-  -d "duration=30" \
-  -d "email=recipient@example.com"
-
-Note: The form expects standard form data (application/x-www-form-urlencoded). Make sure the server is running and your MAIL_USERNAME / MAIL_PASSWORD are set.
-
----
-
 ## Deployment (Heroku / similar)
 
 1. Ensure Git repo is created and pushed to your hosting platform.
