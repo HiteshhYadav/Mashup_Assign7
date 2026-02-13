@@ -11,17 +11,16 @@ from sendgrid.helpers.mail import (
     Disposition
 )
 
+# REQUIRED for gunicorn (app:app)
 app = Flask(__name__)
 
 
 def send_email(to_email):
     zip_file = "mashup.zip"
 
-    # check file exists
     if not os.path.exists(zip_file):
         return False
 
-    # email message
     message = Mail(
         from_email=os.getenv("FROM_EMAIL"),
         to_emails=to_email,
@@ -29,7 +28,6 @@ def send_email(to_email):
         html_content="Your mashup file is attached."
     )
 
-    # attach zip
     with open(zip_file, "rb") as f:
         data = f.read()
 
@@ -44,7 +42,6 @@ def send_email(to_email):
 
     message.attachment = attachment
 
-    # send email
     try:
         sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
         sg.send(message)
