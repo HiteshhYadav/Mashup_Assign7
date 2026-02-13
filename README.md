@@ -88,7 +88,7 @@ web: gunicorn app:app
 
 ## How to use the web UI
 
-Open http://localhost:5000 in your browser and fill the form:
+Open https://mashup-assign7.onrender.com/ in your browser and fill the form:
 
 - Singer Name — free text query used to search YouTube
 - Number of Videos — integer (must be greater than 10). The app enforces: `num_videos > 10`.
