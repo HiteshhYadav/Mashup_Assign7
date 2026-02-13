@@ -13,7 +13,9 @@ app.config["MAIL_PORT"] = 587
 app.config["MAIL_USE_TLS"] = True
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
+
 mail = Mail(app)
+
 
 def download_audio(singer, num_videos):
     os.makedirs("downloads", exist_ok=True)
@@ -26,16 +28,16 @@ def download_audio(singer, num_videos):
 
     with YoutubeDL(search_opts) as ydl:
         search = ydl.extract_info(
-            f"ytsearch{num_videos * 2}:{singer}",
+            f"ytsearch{num_videos * 3}:{singer}",
             download=False
         )
 
     entries = search.get("entries", [])
 
     video_urls = []
-    for entry in entries:
-        if entry and entry.get("_type") == "url" and entry.get("ie_key") == "Youtube":
-            video_urls.append(entry["url"])
+    for e in entries:
+        if e and e.get("_type") == "url" and e.get("ie_key") == "Youtube":
+            video_urls.append(e["url"])
         if len(video_urls) == num_videos:
             break
 
@@ -44,6 +46,7 @@ def download_audio(singer, num_videos):
         "outtmpl": "downloads/%(id)s.%(ext)s",
         "quiet": True,
         "noplaylist": True,
+        "ignoreerrors": True,
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
@@ -64,13 +67,18 @@ def create_mashup(singer, num_videos, duration):
 
     download_audio(singer, num_videos)
 
-    for file in os.listdir("downloads"):
-        if file.endswith(".mp3"):
-            audio_path = os.path.join("downloads", file)
-            cut_path = os.path.join("cuts", file)
-            audio = AudioSegment.from_mp3(audio_path)
-            cut_audio = audio[:duration * 1000]
-            cut_audio.export(cut_path, format="mp3")
+    files = [f for f in os.listdir("downloads") if f.endswith(".mp3")]
+
+    if len(files) == 0:
+        raise Exception("No audio downloaded")
+
+    for file in files:
+        audio_path = os.path.join("downloads", file)
+        cut_path = os.path.join("cuts", file)
+
+        audio = AudioSegment.from_mp3(audio_path)
+        cut_audio = audio[:duration * 1000]
+        cut_audio.export(cut_path, format="mp3")
 
     final_audio = AudioSegment.empty()
 
@@ -102,27 +110,35 @@ def index():
         email = request.form["email"]
 
         if num_videos <= 10:
-            return "Number of videos must be greater than 10"
+            return render_template("success.html",
+                                   message="Number of videos must be greater than 10")
 
         if duration <= 20:
-            return "Duration must be greater than 20 seconds"
+            return render_template("success.html",
+                                   message="Duration must be greater than 20 seconds")
 
-        zip_file = create_mashup(singer, num_videos, duration)
+        try:
+            zip_file = create_mashup(singer, num_videos, duration)
 
-        msg = Message(
-            subject="Your Mashup File",
-            sender=app.config["MAIL_USERNAME"],
-            recipients=[email]
-        )
+            msg = Message(
+                subject="Your Mashup File",
+                sender=app.config["MAIL_USERNAME"],
+                recipients=[email]
+            )
 
-        with open(zip_file, "rb") as f:
-            msg.attach("mashup.zip", "application/zip", f.read())
+            with open(zip_file, "rb") as f:
+                msg.attach("mashup.zip", "application/zip", f.read())
 
-        mail.send(msg)
+            mail.send(msg)
 
-        os.remove(zip_file)
+            os.remove(zip_file)
 
-        return render_template("success.html")
+            return render_template("success.html",
+                                   message="Mashup created and sent to your email.")
+
+        except Exception:
+            return render_template("success.html",
+                                   message="Could not generate mashup right now. Please try again later.")
 
     return render_template("index.html")
 
