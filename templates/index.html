@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mashup Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 350px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #667eea;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #5a67d8;
+        }
+
+        .note {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Mashup Generator</h2>
+    <form method="POST">
+        <label>Singer Name</label>
+        <input type="text" name="singer" required>
+
+        <label>Number of Videos (>10)</label>
+        <input type="number" name="videos" required>
+
+        <label>Duration in Seconds (>20)</label>
+        <input type="number" name="duration" required>
+
+        <label>Email Address</label>
+        <input type="email" name="email" required>
+
+        <button type="submit">Generate Mashup</button>
+    </form>
+    <div class="note">The mashup will be sent to your email.</div>
+</div>
+
+</body>
+</html>
