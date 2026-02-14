@@ -149,19 +149,3 @@ Response messages appear on the success page:
 - Allow different transition effects (crossfade) between clips using pydub.
 
 ---
-
-## Contributing
-This repository does not include a contribution guide. If you want to contribute:
-- Fork the repo, create a feature branch, and open a pull request with a clear description.
-- Add tests and update documentation as appropriate.
-
----
-
-## License
-No license file is included in this repository. If you intend to reuse or distribute this code, consider adding a LICENSE file (for example, MIT). Until then, default to "No license specified" — permission to use, copy, modify, or distribute is not granted.
-
----
-
-If you want, I can:
-- Add a sample `.env.example` and show using python-dotenv for local development.
-- Add basic queueing example, or minimal authentication for the form.
