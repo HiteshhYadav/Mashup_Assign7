@@ -88,6 +88,8 @@ web: gunicorn app:app
 
 ## How to use the web UI
 
+<img src="assets/interface.png" width="500">
+
 Open https://mashup-assign7.onrender.com/ in your browser and fill the form:
 
 - Singer Name — free text query used to search YouTube
@@ -103,6 +105,9 @@ Response messages appear on the success page:
 - Success message when email sent
 - Generic error when mashup generation fails
 
+
+## Success - Mail sent
+<img src="assets/mail.png" width="500">
 ---
 
 ## Deployment (Heroku / similar)
